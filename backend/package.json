@@ -1,0 +1,29 @@
+{
+  "name": "delhi-bus-crowding-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Delhi Bus Crowding Estimation System",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "aggregate": "node src/jobs/aggregateWeekly.js",
+    "init-db": "node src/scripts/initDatabase.js"
+  },
+  "keywords": ["delhi", "bus", "crowding", "estimation"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
+
