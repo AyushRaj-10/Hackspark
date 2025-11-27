@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delhi Transit Live Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚌 Delhi Transit Live Tracker</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="label">Status:</span>
+                    <span id="connection-status" class="status-value">Connecting...</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Active Vehicles:</span>
+                    <span id="vehicle-count" class="status-value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Last Update:</span>
+                    <span id="last-update" class="status-value">--</span>
+                </div>
+                <button id="toggle-updates" class="btn-toggle">Pause Updates</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>Vehicle Details</h2>
+                <div id="vehicle-list" class="vehicle-list">
+                    <p class="empty-state">Click on a bus marker to see details</p>
+                </div>
+                <div class="legend">
+                    <h3>Legend</h3>
+                    <div class="legend-item">
+                        <span class="legend-marker on-time"></span>
+                        <span>On Time (&lt; 2 min delay)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker delayed"></span>
+                        <span>Delayed (≥ 2 min)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker moving"></span>
+                        <span>Moving</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="map" class="map-container"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
