@@ -1,0 +1,240 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BMTC Multi-Bus Live Tracker</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 8px 16px;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    #map {
+      flex: 1;
+    }
+    #sidebar {
+      width: 260px;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 8px 12px;
+      background: #020617;
+      border-left: 1px solid #1f2937;
+      font-size: 12px;
+    }
+    #container {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    .bus-card {
+      padding: 6px 8px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      background: #0b1120;
+      border: 1px solid #1f2937;
+    }
+    .bus-card strong {
+      color: #e5e7eb;
+    }
+    .bus-card small {
+      color: #9ca3af;
+    }
+    .status {
+      font-size: 11px;
+      margin-top: 3px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      background: #1f2937;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>BMTC Multi-Bus Live Tracker</strong></div>
+    <div style="font-size: 12px; color: #9ca3af;">Live markers for multiple vehicles</div>
+  </header>
+
+  <div id="container">
+    <div id="map"></div>
+    <div id="sidebar"></div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+
+  <script>
+    // ======= CONFIG =======
+    const API_BASE = "http://localhost:8000"; // FastAPI backend
+
+    // List of buses you want to track
+    // You ONLY need vehicleId, label is just for display.
+   const BUSES = [
+  { id: 19617, label: "15-G" },
+  { id: 20510, label: "Bus 20510" },
+  { id: 28528, label: "V-500CA" },
+  { id: 28008, label: "G-7" },
+  { id: 20777, label: "515-B" },
+  { id: 28004, label: "245-J" },
+  { id: 21576, label: "Bus 21576" },
+  { id: 22997, label: "Bus 22997" },
+  { id: 19972, label: "Bus 19972" }
+];
+       // KA51AK6325
+      // ↙️ add more here like:
+      // { id: 12345, label: "RouteName" },
+
+    const POLL_MS = 3000;// how often to refresh (ms)
+
+    let map;
+    const busMarkers = {};  // vehicleId -> marker
+    let mapBounds = null;   // to fit all buses on first update
+    let firstFitDone = false;
+
+    async function fetchJSON(url) {
+      const fullUrl = `${url}?_t=${Date.now()}`; // avoid cache
+      const resp = await fetch(fullUrl, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return resp.json();
+    }
+
+    function colorForBus(idx) {
+      // Simple color palette; doesn't affect marker color unless using custom icons,
+      // but we will use it for card styling & maybe later custom markers.
+      const colors = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#a855f7", "#f97316", "#ec4899", "#14b8a6", "#facc15", "#2dd4bf"];
+      return colors[idx % colors.length];
+    }
+
+    function updateSidebar(busId, info, color) {
+      const sidebar = document.getElementById("sidebar");
+      let card = document.getElementById(`bus-card-${busId}`);
+      if (!card) {
+        card = document.createElement("div");
+        card.id = `bus-card-${busId}`;
+        card.className = "bus-card";
+        sidebar.appendChild(card);
+      }
+
+      card.style.borderColor = color;
+      card.innerHTML = `
+        <div><span class="badge" style="background:${color};color:#020617;"><strong>${info.label}</strong></span>
+          <small>${info.routeNo || ""} · ${info.vehicleNo || ""}</small>
+        </div>
+        <div class="status">
+          <div>Status: ${info.tripStatus || "—"}</div>
+          <div>Next: ${info.nextStop || "—"}</div>
+          <div>Last: ${info.lastUpdated || "—"}</div>
+          <div>Lat/Lng: ${info.lat.toFixed(5)}, ${info.lng.toFixed(5)}</div>
+        </div>
+      `;
+    }
+
+    async function updateAllBuses() {
+      const requests = BUSES.map(bus =>
+        fetchJSON(`${API_BASE}/api/bus/${bus.id}`)
+          .then(data => ({ bus, data }))
+          .catch(err => {
+            console.error("Error fetching bus", bus.id, err);
+            return null;
+          })
+      );
+
+      const results = await Promise.all(requests);
+
+      results.forEach((item, idx) => {
+        if (!item) return;
+        const { bus, data } = item;
+        const latlng = [data.lat, data.lng];
+        const color = colorForBus(idx);
+
+        // Update / create marker
+        if (!busMarkers[bus.id]) {
+          const icon = L.icon({
+            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [0, -35],
+            // You can later use colored icons if you want
+          });
+
+          const marker = L.marker(latlng, { icon })
+            .addTo(map)
+            .bindPopup(`${bus.label || ""} · ${data.routeNo || ""} · ${data.vehicleNo || ""}`);
+          busMarkers[bus.id] = marker;
+        } else {
+          busMarkers[bus.id].setLatLng(latlng);
+        }
+
+        // Expand bounds to include this bus
+        if (!mapBounds) {
+          mapBounds = L.latLngBounds(latlng, latlng);
+        } else {
+          mapBounds.extend(latlng);
+        }
+
+        // Update sidebar info
+        updateSidebar(bus.id, {
+          label: bus.label || data.routeNo || `Bus ${bus.id}`,
+          routeNo: data.routeNo,
+          vehicleNo: data.vehicleNo,
+          tripStatus: data.tripStatus,
+          nextStop: data.nextStop,
+          lastUpdated: data.lastUpdated || "",
+          lat: data.lat,
+          lng: data.lng,
+        }, color);
+      });
+
+      // Fit map to all buses on the first batch
+      if (!firstFitDone && mapBounds && mapBounds.isValid()) {
+        map.fitBounds(mapBounds, { padding: [40, 40] });
+        firstFitDone = true;
+      }
+    }
+
+    async function init() {
+      // Init map roughly around Bangalore
+      map = L.map("map").setView([12.97, 77.59], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+
+      // First load
+      await updateAllBuses();
+      // Then poll periodically
+      setInterval(updateAllBuses, POLL_MS);
+    }
+
+    init().catch(err => console.error("Init error:", err));
+  </script>
+</body>
+</html>
