@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delhi Transit Live Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚌 Delhi Transit Live Tracker</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="label">Status:</span>
+                    <span id="connection-status" class="status-value">Connecting...</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Active Vehicles:</span>
+                    <span id="vehicle-count" class="status-value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Last Update:</span>
+                    <span id="last-update" class="status-value">--</span>
+                </div>
+                <button id="toggle-updates" class="btn-toggle">Pause Updates</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="route-search">
+                    <h2>Route Search</h2>
+                    <div class="search-form">
+                        <div class="input-group">
+                            <label for="start-location">Start Location</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="start-location" placeholder="e.g., Connaught Place, Delhi" autocomplete="off" />
+                                <button class="btn-location" id="start-location-btn" title="Click on map to set">📍</button>
+                                <div id="start-location-dropdown" class="autocomplete-dropdown"></div>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="end-location">End Location</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="end-location" placeholder="e.g., India Gate, Delhi" autocomplete="off" />
+                                <button class="btn-location" id="end-location-btn" title="Click on map to set">📍</button>
+                                <div id="end-location-dropdown" class="autocomplete-dropdown"></div>
+                            </div>
+                        </div>
+                        <div class="search-buttons">
+                            <button id="search-route" class="btn-search">Search Route</button>
+                            <button id="clear-route" class="btn-clear" style="display: none;">Clear Route</button>
+                        </div>
+                    </div>
+                    <div id="route-results" class="route-results" style="display: none;">
+                        <h3>Buses on Route</h3>
+                        <div class="route-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total Buses:</span>
+                                <span class="stat-value" id="route-bus-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">On Time:</span>
+                                <span class="stat-value on-time-stat" id="route-on-time-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Delayed:</span>
+                                <span class="stat-value delayed-stat" id="route-delayed-count">0</span>
+                            </div>
+                        </div>
+                        <div id="route-bus-list" class="route-bus-list">
+                            <!-- Bus details will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="divider"></div>
+                <div class="vehicle-details-section">
+                    <h2>Vehicle Details</h2>
+                    <div id="vehicle-list" class="vehicle-list">
+                        <p class="empty-state">Enter start and end locations to see buses on route</p>
+                    </div>
+                </div>
+                <div class="legend">
+                    <h3>Legend</h3>
+                    <div class="legend-item">
+                        <span class="legend-marker on-time"></span>
+                        <span>On Time (&lt; 2 min delay)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker delayed"></span>
+                        <span>Delayed (≥ 2 min)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker moving"></span>
+                        <span>Moving</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="map" class="map-container"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
