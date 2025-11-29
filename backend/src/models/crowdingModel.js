@@ -1,6 +1,8 @@
 // crowdingModel.js - Database access functions for crowding data (MongoDB)
-const CrowdingReport = require('./CrowdingReport');
-const CrowdingHistory = require('./CrowdingHistory');
+
+// 🚨 FIX 1: Convert CommonJS require to ES Module import
+import CrowdingReport from './CrowdingReport.js';
+import CrowdingHistory from './CrowdingHistory.js';
 
 /**
  * Insert a new crowding report
@@ -40,6 +42,7 @@ async function getHistoricalAvg(route_id, time_slot, weekday) {
     weekday
   });
   
+  // Ensure we are accessing the document correctly if it uses .lean() or .toObject() later
   return history ? parseFloat(history.avg_crowd) : null;
 }
 
@@ -95,12 +98,6 @@ async function getLatestDriverReport(bus_id) {
 /**
  * Insert or update historical aggregation data
  * Used by the weekly aggregation job
- * @param {string} route_id - Route identifier
- * @param {string} time_slot - Time slot string
- * @param {number} weekday - Weekday (0-6)
- * @param {number} avg_crowd - Average crowd level
- * @param {number} sample_count - Number of samples
- * @returns {Promise<void>}
  */
 async function insertOrUpdateHistory(route_id, time_slot, weekday, avg_crowd, sample_count) {
   await CrowdingHistory.findOneAndUpdate(
@@ -127,9 +124,6 @@ async function insertOrUpdateHistory(route_id, time_slot, weekday, avg_crowd, sa
 
 /**
  * Get all reports for a bus (for debugging/admin)
- * @param {string} bus_id - Bus identifier
- * @param {number} limit - Maximum number of reports to return
- * @returns {Promise<Array>} Array of report objects
  */
 async function getBusReports(bus_id, limit = 50) {
   const reports = await CrowdingReport.find({ bus_id })
@@ -140,7 +134,8 @@ async function getBusReports(bus_id, limit = 50) {
   return reports;
 }
 
-module.exports = {
+// 🚨 FIX 2: Replace module.exports with export default for the entire module
+export default {
   insertReport,
   getHistoricalAvg,
   getRecentUserAvg,

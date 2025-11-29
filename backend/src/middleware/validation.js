@@ -1,9 +1,9 @@
-// validation.js - Request validation middleware
+// validation.js - Request validation middleware (ES Module Conversion)
 
 /**
  * Validate crowding report request body
  */
-function validateCrowdingReport(req, res, next) {
+export function validateCrowdingReport(req, res, next) { // 🚨 ADDED 'export'
   const { bus_id, route_id, crowd_level, source } = req.body;
   
   const errors = [];
@@ -39,7 +39,7 @@ function validateCrowdingReport(req, res, next) {
 /**
  * Validate crowd score query parameters
  */
-function validateCrowdScoreQuery(req, res, next) {
+export function validateCrowdScoreQuery(req, res, next) { // 🚨 ADDED 'export'
   const { bus_id, route_id } = req.query;
   
   if (!bus_id || typeof bus_id !== 'string' || bus_id.trim().length === 0) {
@@ -57,8 +57,5 @@ function validateCrowdScoreQuery(req, res, next) {
   next();
 }
 
-module.exports = {
-  validateCrowdingReport,
-  validateCrowdScoreQuery
-};
-
+// 🚨 REMOVED: module.exports = { validateCrowdingReport, validateCrowdScoreQuery };
+// The individual 'export' keywords now handle the module exposure.

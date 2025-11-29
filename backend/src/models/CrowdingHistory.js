@@ -1,5 +1,7 @@
-// CrowdingHistory.js - Mongoose schema for historical aggregation data
-const mongoose = require('mongoose');
+// CrowdingHistory.js - Mongoose schema for historical aggregation data (ES Module Conversion)
+
+// 🚨 FIX 1: Change CommonJS require to ES Module import
+import mongoose from 'mongoose';
 
 const crowdingHistorySchema = new mongoose.Schema({
   route_id: {
@@ -39,16 +41,9 @@ const crowdingHistorySchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
-  updated_at: {
-    type: Date,
-    default: Date.now
-  },
-  created_at: {
-    type: Date,
-    default: Date.now
-  }
+  // NOTE: timestamps: true in the options handles created_at and updated_at automatically
 }, {
-  timestamps: true
+  timestamps: true // This option simplifies created_at and updated_at fields
 });
 
 // Unique compound index for route_id, time_slot, and weekday
@@ -57,5 +52,5 @@ crowdingHistorySchema.index({ route_id: 1, weekday: 1, time_slot: 1 });
 
 const CrowdingHistory = mongoose.model('CrowdingHistory', crowdingHistorySchema);
 
-module.exports = CrowdingHistory;
-
+// 🚨 FIX 2: Replace module.exports = CrowdingHistory with default export
+export default CrowdingHistory;

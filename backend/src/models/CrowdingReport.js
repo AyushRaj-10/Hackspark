@@ -1,5 +1,7 @@
-// CrowdingReport.js - Mongoose schema for crowding reports
-const mongoose = require('mongoose');
+// CrowdingReport.js - Mongoose schema for crowding reports (ES Module Conversion)
+
+// 🚨 FIX 1: Change CommonJS require to ES Module import
+import mongoose from 'mongoose';
 
 const crowdingReportSchema = new mongoose.Schema({
   bus_id: {
@@ -52,5 +54,5 @@ crowdingReportSchema.index({ source: 1, timestamp: -1 });
 
 const CrowdingReport = mongoose.model('CrowdingReport', crowdingReportSchema);
 
-module.exports = CrowdingReport;
-
+// 🚨 FIX 2: Replace module.exports with export default
+export default CrowdingReport;

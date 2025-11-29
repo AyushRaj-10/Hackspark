@@ -462,82 +462,47 @@ export default function LiveTrackerMap() {
             routeStart = start;
             routeEnd = end;
         }
-        
-        function updateRouteResults(vehicles) {
-            if (!routeResultsEl) return;
+
+        function clearRoute() {
+            // Remove route visualization
+            if (routePolyline) map.removeLayer(routePolyline);
+            if (routeStartMarker) map.removeLayer(routeStartMarker);
+            if (routeEndMarker) map.removeLayer(routeEndMarker);
             
-            const onTimeCount = vehicles.filter(v => v.delaySeconds / 60 < 2).length;
-            const delayedCount = vehicles.length - onTimeCount;
+            routePolyline = null;
+            routeStartMarker = null;
+            routeEndMarker = null;
+            routeStart = null;
+            routeEnd = null;
+            isRouteFilterActive = false;
             
-            routeResultsEl.style.display = 'block';
+            // Clear inputs
+            if (startLocationInput) startLocationInput.value = '';
+            if (endLocationInput) endLocationInput.value = '';
             
-            // Update the route bus list
-            if (routeBusListEl) {
-                if (vehicles.length === 0) {
-                    routeBusListEl.innerHTML = `
-                        <div class="text-center py-6">
-                            <p class="text-slate-600 font-medium">No buses found on this route</p>
-                            <p class="text-xs text-slate-400 mt-1">Try adjusting your start and end locations</p>
-                        </div>
-                    `;
-                } else {
-                    routeBusListEl.innerHTML = `
-                        <div class="flex items-center justify-between mb-3 pb-3 border-b border-green-200">
-                            <div class="text-center flex-1">
-                                <p class="text-2xl font-bold text-green-700">${vehicles.length}</p>
-                                <p class="text-xs text-green-600 font-medium">Total Buses</p>
-                            </div>
-                            <div class="text-center flex-1 border-l border-green-200">
-                                <p class="text-2xl font-bold text-green-700">${onTimeCount}</p>
-                                <p class="text-xs text-green-600 font-medium">On Time</p>
-                            </div>
-                            <div class="text-center flex-1 border-l border-green-200">
-                                <p class="text-2xl font-bold text-red-600">${delayedCount}</p>
-                                <p class="text-xs text-red-600 font-medium">Delayed</p>
-                            </div>
-                        </div>
-                        <div class="space-y-2 max-h-64 overflow-y-auto">
-                            ${vehicles.map(vehicle => {
-                                const isDelayed = vehicle.delaySeconds / 60 >= 2;
-                                const badgeColor = isDelayed ? 'bg-red-500' : 'bg-green-500';
-                                const bgColor = isDelayed ? 'bg-red-50' : 'bg-green-50';
-                                
-                                return `
-                                    <div class="${bgColor} rounded-lg p-3 cursor-pointer hover:shadow-md transition-all" data-vehicle-id="${vehicle.id}">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-6 h-6 ${badgeColor} rounded text-white flex items-center justify-center text-xs font-bold">
-                                                    ${vehicle.id.substring(0, 2)}
-                                                </div>
-                                                <div>
-                                                    <p class="text-sm font-bold text-slate-800">Vehicle ${vehicle.id}</p>
-                                                    <p class="text-xs text-slate-500">Route ${vehicle.trip.routeId || 'N/A'}</p>
-                                                </div>
-                                            </div>
-                                            <span class="${badgeColor} text-white text-xs font-bold px-2 py-1 rounded-full">
-                                                ${isDelayed ? formatDelay(vehicle.delaySeconds) : 'On time'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    `;
-                    
-                    // Add click handlers to route bus items
-                    routeBusListEl.querySelectorAll('[data-vehicle-id]').forEach(item => {
-                        item.addEventListener('click', () => {
-                            const vehicleId = item.dataset.vehicleId;
-                            const vehicle = allVehicles.find(v => v.id === vehicleId);
-                            if (vehicle) {
-                                selectVehicle(vehicle);
-                            }
-                        });
-                    });
-                }
+            if (startLocationInput && startLocationInput.dataset) {
+                delete startLocationInput.dataset.lat;
+                delete startLocationInput.dataset.lng;
             }
+            if (endLocationInput && endLocationInput.dataset) {
+                delete endLocationInput.dataset.lat;
+                delete endLocationInput.dataset.lng;
+            }
+            
+            // Hide route results and clear button
+            if (routeResultsEl) routeResultsEl.style.display = 'none';
+            if (clearRouteBtn) clearRouteBtn.style.display = 'none';
+            
+            // Reset map and vehicle list to show all vehicles
+            updateMap(allVehicles);
+            updateVehicleList(allVehicles);
+            
+            // Reset map view to Delhi
+            map.setView(delhiCoords, 11);
         }
 
+        // --- Geocoding/Autocomplete Functions (Must be defined here) ---
+        
         async function geocodeLocation(locationName) {
             try {
                 // Using Nominatim OpenStreetMap API for geocoding
@@ -564,7 +529,6 @@ export default function LiveTrackerMap() {
             if (!query || query.length < 3) return [];
             
             try {
-                // Using Nominatim API for location suggestions
                 const response = await fetch(
                     `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)},Delhi,India&format=json&limit=5&addressdetails=1`
                 );
@@ -580,7 +544,7 @@ export default function LiveTrackerMap() {
                 return [];
             }
         }
-        
+
         function showAutocompleteDropdown(inputId, suggestions) {
             const dropdown = document.getElementById(`${inputId}-dropdown`);
             if (!dropdown) return;
@@ -618,12 +582,12 @@ export default function LiveTrackerMap() {
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             `;
             
-            // Add click handlers
             dropdown.querySelectorAll('.autocomplete-item').forEach((item, index) => {
                 item.addEventListener('click', () => {
                     const input = document.getElementById(inputId);
                     if (input) {
                         input.value = suggestions[index].name.split(',')[0];
+                        // Store coordinates in dataset
                         input.dataset.lat = suggestions[index].lat;
                         input.dataset.lng = suggestions[index].lng;
                     }
@@ -646,7 +610,6 @@ export default function LiveTrackerMap() {
             input.addEventListener('input', async (e) => {
                 const query = e.target.value.trim();
                 
-                // Clear previous timeout
                 if (autocompleteTimeouts[inputId]) {
                     clearTimeout(autocompleteTimeouts[inputId]);
                 }
@@ -656,21 +619,19 @@ export default function LiveTrackerMap() {
                     return;
                 }
                 
-                // Debounce API calls
                 autocompleteTimeouts[inputId] = setTimeout(async () => {
                     const suggestions = await searchLocationSuggestions(query);
                     showAutocompleteDropdown(inputId, suggestions);
                 }, 300);
             });
             
-            // Hide dropdown when clicking outside
             document.addEventListener('click', (e) => {
                 if (!input.contains(e.target)) {
                     hideAutocompleteDropdown(inputId);
                 }
             });
         }
-
+        
         // --- EVENT LISTENERS ---
         
         if(toggleButton) {
@@ -700,9 +661,9 @@ export default function LiveTrackerMap() {
                 searchRouteBtn.textContent = 'Searching...';
                 
                 try {
-                    // Use stored coordinates if available, otherwise geocode
                     let startData, endData;
                     
+                    // Use stored coordinates from dataset if available
                     if (startLocationInput.dataset.lat && startLocationInput.dataset.lng) {
                         startData = {
                             lat: parseFloat(startLocationInput.dataset.lat),
@@ -728,17 +689,17 @@ export default function LiveTrackerMap() {
                         drawRoute(startData, endData);
                         
                         // Filter vehicles along the route
-                        filteredVehicles = filterVehiclesByRoute(allVehicles, startData, endData);
+                        let vehiclesOnRoute = filterVehiclesByRoute(allVehicles, startData, endData);
                         isRouteFilterActive = true;
                         
                         // Update map with filtered vehicles
-                        updateMap(filteredVehicles);
+                        updateMap(vehiclesOnRoute);
                         
                         // Update vehicle list with filtered vehicles
-                        updateVehicleList(filteredVehicles);
+                        updateVehicleList(vehiclesOnRoute);
                         
                         // Update route results display
-                        updateRouteResults(filteredVehicles);
+                        updateRouteResults(vehiclesOnRoute);
                         
                         // Show clear button
                         if (clearRouteBtn) clearRouteBtn.style.display = 'block';
@@ -770,16 +731,21 @@ export default function LiveTrackerMap() {
                 isRouteFilterActive = false;
                 
                 // Clear inputs
-                startLocationInput.value = '';
-                endLocationInput.value = '';
-                delete startLocationInput.dataset.lat;
-                delete startLocationInput.dataset.lng;
-                delete endLocationInput.dataset.lat;
-                delete endLocationInput.dataset.lng;
+                if (startLocationInput) startLocationInput.value = '';
+                if (endLocationInput) endLocationInput.value = '';
+                
+                if (startLocationInput && startLocationInput.dataset) {
+                    delete startLocationInput.dataset.lat;
+                    delete startLocationInput.dataset.lng;
+                }
+                if (endLocationInput && endLocationInput.dataset) {
+                    delete endLocationInput.dataset.lat;
+                    delete endLocationInput.dataset.lng;
+                }
                 
                 // Hide route results and clear button
                 if (routeResultsEl) routeResultsEl.style.display = 'none';
-                clearRouteBtn.style.display = 'none';
+                if (clearRouteBtn) clearRouteBtn.style.display = 'none';
                 
                 // Reset map and vehicle list to show all vehicles
                 updateMap(allVehicles);
@@ -815,7 +781,7 @@ export default function LiveTrackerMap() {
                             <span className='text-2xl'>🚌</span>
                         </div>
                         <div>
-                            <h1 className='text-xl font-bold tracking-tight'>Delhi Transit Live Tracker</h1>
+                            <h1 className='text-xl font-bold tracking-tight'>City Stride Live Tracker</h1>
                             <p className="text-xs text-slate-400 mt-0.5">Real-time bus monitoring system</p>
                         </div>
                     </div>
@@ -989,9 +955,12 @@ export default function LiveTrackerMap() {
 
                 </div>
 
-                {/* MAP CONTAINER */}
+                {/* MAP CONTAINER: Target for Leaflet initialization */}
                 <div id="map" ref={mapContainerRef} className="map-container flex-grow h-full relative z-0 shadow-inner"></div>
             </div>
         </div>
     );
 }
+
+// Ensure the necessary component code is present (omitted for brevity)
+// ...

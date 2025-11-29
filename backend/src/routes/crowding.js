@@ -1,24 +1,28 @@
-// crowding.js - API routes for crowding reports and scores
-const express = require('express');
+// routes/crowding.js
+import express from 'express';
+// Assuming model, getTimeSlot, getWeekday, and validation are converted to ES modules:
+import model from '../models/crowdingModel.js';
+import { getTimeSlot, getWeekday } from '../utils/timeSlot.js';
+import { validateCrowdingReport, validateCrowdScoreQuery } from '../middleware/validation.js';
+
 const router = express.Router();
-const model = require('../models/crowdingModel');
-const { getTimeSlot, getWeekday } = require('../utils/timeSlot');
-const { validateCrowdingReport, validateCrowdScoreQuery } = require('../middleware/validation');
 
 /**
  * POST /api/crowding-report
  * Submit a new crowding report
- * Body: { bus_id, route_id, stop_id?, crowd_level (1|2|3), source: 'user'|'driver'|'auto' }
  */
 router.post('/crowding-report', validateCrowdingReport, async (req, res) => {
   try {
     const { bus_id, route_id, stop_id, crowd_level, source } = req.body;
     
+    // Convert crowd_level to Number safely
+    const level = Number(crowd_level);
+
     const row = await model.insertReport({ 
-      bus_id: bus_id.trim(), 
-      route_id: route_id.trim(), 
+      bus_id: bus_id ? bus_id.trim() : null, 
+      route_id: route_id ? route_id.trim() : null, 
       stop_id: stop_id ? stop_id.trim() : null, 
-      crowd_level: Number(crowd_level), 
+      crowd_level: level, 
       source 
     });
     
@@ -39,14 +43,7 @@ router.post('/crowding-report', validateCrowdingReport, async (req, res) => {
 /**
  * GET /api/crowd-score
  * Get computed crowd score for a bus
- * Query params: bus_id, route_id, time? (ISO date string)
- * 
- * Returns computed crowd_score (numeric) and category (low/med/high)
- * 
- * Algorithm:
- * - Historical average (50% weight): Based on route/time-slot/weekday
- * - Recent user reports (30% weight): Average of user reports in last 15 minutes
- * - Latest driver report (20% weight): Most recent driver report
+ * * Algorithm: 50% historical + 30% recent users + 20% driver
  */
 router.get('/crowd-score', validateCrowdScoreQuery, async (req, res) => {
   try {
@@ -55,7 +52,6 @@ router.get('/crowd-score', validateCrowdScoreQuery, async (req, res) => {
     // Parse time or use current time
     const date = time ? new Date(time) : new Date();
     
-    // Validate date
     if (isNaN(date.getTime())) {
       return res.status(400).json({ 
         error: 'Invalid time parameter. Use ISO 8601 format.' 
@@ -73,12 +69,12 @@ router.get('/crowd-score', validateCrowdScoreQuery, async (req, res) => {
       model.getLatestDriverReport(bus_id)
     ]);
     
-    // Default fallbacks (neutral medium crowding)
+    // Default fallbacks (neutral medium crowding: 2.0 on a 1-3 scale)
     const hist = historicalAvg !== null ? historicalAvg : 2.0;
     const usr = recentUserAvg !== null ? recentUserAvg : 2.0;
     const drv = driverLatest !== null ? driverLatest : 2.0;
     
-    // Weighted formula: 50% historical + 30% recent users + 20% driver
+    // Weighted formula
     const crowd_score = Math.round((0.5 * hist + 0.3 * usr + 0.2 * drv) * 100) / 100;
     
     // Categorize
@@ -138,5 +134,5 @@ router.get('/crowd-score/:bus_id/reports', async (req, res) => {
   }
 });
 
-module.exports = router;
-
+// 🚨 FIX: Change to ES Module default export
+export default router;
